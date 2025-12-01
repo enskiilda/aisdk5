@@ -4,7 +4,8 @@ import { PreviewMessage } from "@/components/message";
 import { getDesktopURL } from "@/lib/e2b/utils";
 import { useScrollToBottom } from "@/lib/use-scroll-to-bottom";
 import { useChat } from "@ai-sdk/react";
-import { useEffect, useState } from "react";
+import { DefaultChatTransport } from "ai";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Input } from "@/components/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -16,7 +17,6 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { ABORTED } from "@/lib/utils";
 
 export default function Chat() {
   // Create separate refs for mobile and desktop to ensure both scroll properly
@@ -26,23 +26,27 @@ export default function Chat() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [sandboxId, setSandboxId] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: {
+          sandboxId,
+        },
+      }),
+    [sandboxId]
+  );
 
   const {
     messages,
-    input,
-    handleInputChange,
-    handleSubmit,
+    sendMessage,
     status,
     stop: stopGeneration,
-    append,
-    setMessages,
   } = useChat({
-    api: "/api/chat",
     id: sandboxId ?? undefined,
-    body: {
-      sandboxId,
-    },
-    maxSteps: 30,
+    transport,
     onError: (error) => {
       console.error(error);
       toast.error("There was an error", {
@@ -53,33 +57,25 @@ export default function Chat() {
     },
   });
 
-  const stop = () => {
-    stopGeneration();
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  }, []);
 
-    const lastMessage = messages.at(-1);
-    const lastMessageLastPart = lastMessage?.parts.at(-1);
-    if (
-      lastMessage?.role === "assistant" &&
-      lastMessageLastPart?.type === "tool-invocation"
-    ) {
-      setMessages((prev) => [
-        ...prev.slice(0, -1),
-        {
-          ...lastMessage,
-          parts: [
-            ...lastMessage.parts.slice(0, -1),
-            {
-              ...lastMessageLastPart,
-              toolInvocation: {
-                ...lastMessageLastPart.toolInvocation,
-                state: "result",
-                result: ABORTED,
-              },
-            },
-          ],
-        },
-      ]);
-    }
+  const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    sendMessage({ role: "user", parts: [{ type: "text", text: input }] });
+    setInput("");
+  }, [input, sendMessage]);
+
+  const append = useCallback((message: { role: "user"; content: string }) => {
+    sendMessage({ role: "user", parts: [{ type: "text", text: message.content }] });
+  }, [sendMessage]);
+
+  const stop = () => {
+    // In SDK 5, simply stop the generation
+    // The UI will show the incomplete state based on the message parts
+    stopGeneration();
   };
 
   const isLoading = status !== "ready";
