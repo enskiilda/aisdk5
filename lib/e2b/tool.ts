@@ -7,8 +7,13 @@ const wait = async (seconds: number) => {
 
 export const resolution = { x: 1024, y: 768 };
 
+// Define result types for computer tool
+type ComputerToolResult = 
+  | { type: "image"; data: string }
+  | { type: "text"; text: string };
+
 export const computerTool = (sandboxId: string) =>
-  anthropic.tools.computer_20250124({
+  anthropic.tools.computer_20250124<ComputerToolResult>({
     displayWidthPx: resolution.x,
     displayHeightPx: resolution.y,
     displayNumber: 1,
@@ -114,21 +119,22 @@ export const computerTool = (sandboxId: string) =>
           throw new Error(`Unsupported action: ${action}`);
       }
     },
-    experimental_toToolResultContent(result) {
-      if (typeof result === "string") {
-        return [{ type: "text", text: result }];
-      }
+    // In AI SDK 5, toModelOutput converts tool output to LanguageModelV2ToolResultOutput format
+    toModelOutput(result: ComputerToolResult) {
       if (result.type === "image" && result.data) {
-        return [
-          {
-            type: "image",
-            data: result.data,
-            mimeType: "image/png",
-          },
-        ];
+        return {
+          type: "content" as const,
+          value: [
+            {
+              type: "media" as const,
+              data: result.data,
+              mediaType: "image/png",
+            },
+          ],
+        };
       }
       if (result.type === "text" && result.text) {
-        return [{ type: "text", text: result.text }];
+        return { type: "text" as const, value: result.text };
       }
       throw new Error("Invalid result format");
     },
