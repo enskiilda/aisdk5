@@ -21,6 +21,9 @@ import {
   StopCircle,
 } from "lucide-react";
 
+// Constants
+const MAX_COMMAND_DISPLAY_LENGTH = 40;
+
 // Helper type for tool parts in SDK 5
 interface ToolPartBase {
   toolCallId: string;
@@ -53,6 +56,14 @@ interface TextOutput {
   type: "text";
   text: string;
 }
+
+// Helper function to format coordinate display
+const formatCoordinate = (
+  coordinate: [number, number] | undefined,
+  prefix: "at" | "to" = "at"
+): string => {
+  return coordinate ? `${prefix} (${coordinate[0]}, ${coordinate[1]})` : "";
+};
 
 const PurePreviewMessage = ({
   message,
@@ -133,30 +144,22 @@ const PurePreviewMessage = ({
                       break;
                     case "left_click":
                       actionLabel = "Left clicking";
-                      actionDetail = coordinate
-                        ? `at (${coordinate[0]}, ${coordinate[1]})`
-                        : "";
+                      actionDetail = formatCoordinate(coordinate);
                       ActionIcon = MousePointer;
                       break;
                     case "right_click":
                       actionLabel = "Right clicking";
-                      actionDetail = coordinate
-                        ? `at (${coordinate[0]}, ${coordinate[1]})`
-                        : "";
+                      actionDetail = formatCoordinate(coordinate);
                       ActionIcon = MousePointerClick;
                       break;
                     case "double_click":
                       actionLabel = "Double clicking";
-                      actionDetail = coordinate
-                        ? `at (${coordinate[0]}, ${coordinate[1]})`
-                        : "";
+                      actionDetail = formatCoordinate(coordinate);
                       ActionIcon = MousePointerClick;
                       break;
                     case "mouse_move":
                       actionLabel = "Moving mouse";
-                      actionDetail = coordinate
-                        ? `to (${coordinate[0]}, ${coordinate[1]})`
-                        : "";
+                      actionDetail = formatCoordinate(coordinate, "to");
                       ActionIcon = MousePointer;
                       break;
                     case "type":
@@ -269,7 +272,7 @@ const PurePreviewMessage = ({
                         <div className="font-medium flex items-baseline gap-2">
                           Running command
                           <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
-                            {command.slice(0, 40)}...
+                            {command.slice(0, MAX_COMMAND_DISPLAY_LENGTH)}...
                           </span>
                         </div>
                       </div>
